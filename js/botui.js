@@ -4486,7 +4486,8 @@
 });
 
 function bot_ui_ini() {
-    var botui = new BotUI("hello-cungudafa")
+    var botui = new BotUI("hello-Bryce-Loski")
+
     botui.message.add({
         delay: 800,
         content: "Hi, there"
@@ -4523,16 +4524,16 @@ function bot_ui_ini() {
             secondpart()
         })
     }
-      , end = function() {
+        , end = function() {
         botui.message.add({
             delay: 600,
             content: "那就很高兴认识你啦"
         })
     }
-      , secondpart = function() {
+        , secondpart = function() {
         botui.message.add({
             delay: 1500,
-            content: "就读于三亚学院"
+            content: "我就读于三亚学院"
         }).then(function() {
             botui.message.add({
                 delay: 1500,
@@ -4557,7 +4558,7 @@ function bot_ui_ini() {
                                 botui.action.button({
                                     delay: 1100,
                                     action: [{
-                                        text: "为什么叫Bryce-Loski呢？🤔",
+                                        text: "为什么叫Bryce-Loski呢？",
                                         value: "why-cungudafa"
                                     }]
                                 }).then(function(a) {
@@ -4570,9 +4571,9 @@ function bot_ui_ini() {
             })
         })
     }
-      , thirdpart = function() {
+        , thirdpart = function() {
         botui.message.add({
-            delay: 1E3,
+            delay: 1300,
             content: "Bryce-Loski是怦然心动这部电影的男主角"
         }).then(function() {
             botui.action.button({
@@ -4586,7 +4587,7 @@ function bot_ui_ini() {
             })
         })
     }
-      , fourthpart = function() {
+        , fourthpart = function() {
         botui.message.add({
             delay: 1E3,
             content: "因为很羡慕这部电影里面甜甜的含蓄的恋爱"
@@ -4594,28 +4595,15 @@ function bot_ui_ini() {
             botui.message.add({
                 delay: 1100,
                 content: "希望自己也有这么一段恋爱，虽然已经过时了，哈哈哈"
-            }).then(function() {
-                botui.action.button({
-                    delay: 1500,
-                    action: [{
-                        text: "域名有什么含义吗？",
-                        value: "why-domain"
-                    }]
-                }).then(function(a) {
+            }).then(function(a) {
                     fifthpart()
-                })
             })
         })
     }
-      , fifthpart = function() {
+        , fifthpart = function() {
         botui.message.add({
             delay: 1E3,
-            content: "emmmm,csdn,github,都是cungudafa哦"
-        }).then(function() {
-            botui.message.add({
-                delay: 1600,
-                content: "那么，相遇就是缘分，赏个赞吧 ^_^"
-            })
+            content: "那么，相遇就是缘分"
         })
     }
 }
