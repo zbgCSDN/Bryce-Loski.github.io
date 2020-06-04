@@ -4,6 +4,19 @@
   
     
     <entry>
+      <title>found</title>
+      <link href="/2020/06/04/found/"/>
+      <url>/2020/06/04/found/</url>
+      
+        <content type="html"><![CDATA[]]></content>
+      
+      
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Hashmap源码解析</title>
       <link href="/2020/06/04/Hashmap%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/"/>
       <url>/2020/06/04/Hashmap%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/</url>
@@ -65,6 +78,35 @@
         <tags>
             
             <tag> JAVA </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>shell脚本执行jps时：-bash: jps: command not found</title>
+      <link href="/2020/02/15/linux/command_not_found/"/>
+      <url>/2020/02/15/linux/command_not_found/</url>
+      
+        <content type="html"><![CDATA[<p>我构建了hadoop集群。我们一定会写一个shell脚本去每一个节点上去jps，查看每个节点的进程情况。</p><p>原先以为shell很简单：</p><figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line"><span class="comment">#!/bin/bash</span></span><br><span class="line"><span class="comment">#查看每个节点运行情况</span></span><br><span class="line"><span class="keyword">for</span>((host=<span class="number">101</span>;host&lt;<span class="number">108</span>;host++));<span class="keyword">do</span></span><br><span class="line">echo ----------<span class="literal">-hadoop</span><span class="variable">$host</span>-------------</span><br><span class="line">ssh hadoop<span class="variable">$host</span> <span class="string">"jps"</span></span><br><span class="line">done</span><br></pre></td></tr></table></figure><p><strong>这里默认服务器节点的名字是hadoop101-hadoop107</strong><br><strong>默认已经配置了ssh_key的公钥和私钥</strong><br>看是运行这段程序的时候会弹出一个错误：</p><h2 id="bash-jps-command-not-found"><a href="#bash-jps-command-not-found" class="headerlink" title="-bash: jps: command not found"></a>-bash: jps: command not found</h2><p>错误原因：<br>在shell脚本写的ssh到其他节点的时候默认是不加载配置文件的。linux并不能去找到java中jps的命令。</p><ul><li><strong>解决方案一</strong>：在ssh到其他节点的时候source 一下配置文件。<br>具体操作为：ssh hadoop$host “source /etc/profile;jps”</li><li><strong>解决方案二</strong>：在ssh到其他节点的时候输入jps命令下的绝对路径。<br>在笔者的linux的jdk的绝对路径为：/opt/module/jdk1.8.0_144/bin这个目录下就有jps的命令。<br>具体操作为：ssh hadoop$host “/opt/module/jdk1.8.0_144/bin/jps”<ul><li><strong>解决方案三</strong>：在当前用户的家目录中输入命令<strong>ll -a</strong>会显示隐藏文件，修改配置文件.bashrc。<br>.bashrc 是当你登入shell时执行<br>在其中添加JDK的环境变量</li><li><strong>解决方案四</strong>：在/etc/profile.d目录下创建一个以sh结尾的文件。将profile配的环境变量拷贝到这个文件目录下</li></ul></li></ul><p>运行结果：</p><figure class="highlight powershell"><table><tr><td class="code"><pre><span class="line">----------<span class="literal">-hadoop101</span>-------------</span><br><span class="line"><span class="number">10720</span> DataNode</span><br><span class="line"><span class="number">10993</span> NodeManager</span><br><span class="line"><span class="number">10573</span> NameNode</span><br><span class="line"><span class="number">19663</span> Jps</span><br><span class="line">----------<span class="literal">-hadoop102</span>-------------</span><br><span class="line"><span class="number">37744</span> Jps</span><br><span class="line"><span class="number">31282</span> NodeManager</span><br><span class="line"><span class="number">31154</span> ResourceManager</span><br><span class="line"><span class="number">31036</span> DataNode</span><br><span class="line">----------<span class="literal">-hadoop103</span>-------------</span><br><span class="line"><span class="number">30725</span> NodeManager</span><br><span class="line"><span class="number">30620</span> SecondaryNameNode</span><br><span class="line"><span class="number">30511</span> DataNode</span><br><span class="line"><span class="number">41135</span> Jps</span><br><span class="line">----------<span class="literal">-hadoop104</span>-------------</span><br><span class="line"><span class="number">30995</span> DataNode</span><br><span class="line"><span class="number">31109</span> NodeManager</span><br><span class="line"><span class="number">37483</span> Jps</span><br><span class="line">----------<span class="literal">-hadoop105</span>-------------</span><br><span class="line"><span class="number">30882</span> NodeManager</span><br><span class="line"><span class="number">30766</span> DataNode</span><br><span class="line"><span class="number">37358</span> Jps</span><br><span class="line">----------<span class="literal">-hadoop106</span>-------------</span><br><span class="line"><span class="number">8816</span> Jps</span><br><span class="line"><span class="number">2592</span> NodeManager</span><br><span class="line"><span class="number">2477</span> DataNode</span><br><span class="line">----------<span class="literal">-hadoop107</span>-------------</span><br><span class="line"><span class="number">37445</span> Jps</span><br><span class="line"><span class="number">31035</span> DataNode</span><br><span class="line"><span class="number">31151</span> NodeManager</span><br></pre></td></tr></table></figure>]]></content>
+      
+      
+      <categories>
+          
+          <category> Linux </category>
+          
+          <category> shell </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Linux </tag>
+            
+            <tag> shell </tag>
             
         </tags>
       
