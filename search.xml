@@ -91,6 +91,31 @@
     
     
     <entry>
+      <title>Spark任务运行流程(基于yarn集群模式)源码分析（2）</title>
+      <link href="/2020/06/01/spark/spark%E4%BB%BB%E5%8A%A1%E8%B0%83%E5%BA%A6%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(2)/"/>
+      <url>/2020/06/01/spark/spark%E4%BB%BB%E5%8A%A1%E8%B0%83%E5%BA%A6%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(2)/</url>
+      
+        <content type="html"><![CDATA[<h1 id="Spark任务运行流程-基于yarn集群模式-源码分析（2）"><a href="#Spark任务运行流程-基于yarn集群模式-源码分析（2）" class="headerlink" title="Spark任务运行流程(基于yarn集群模式)源码分析（2）"></a>Spark任务运行流程(基于yarn集群模式)源码分析（2）</h1><h2 id="回顾"><a href="#回顾" class="headerlink" title="回顾"></a>回顾</h2><p>前文的sparkSubmit阶段已经结束。可以看到yarn集群最后是调用了command(Cluster) = bin/java org.apache.spark.deploy.yarn.ApplicationMaster<br>在源码中搜索 org.apache.spark.deploy.yarn.ApplicationMaster</p><h2 id="2-3-YarnClusterApplication"><a href="#2-3-YarnClusterApplication" class="headerlink" title="2.3 YarnClusterApplication"></a>2.3 YarnClusterApplication</h2><p><img src="https://s1.ax1x.com/2020/06/19/NKlq3T.png" alt="NKlq3T.png"><br>从图中可以看到一共有三个参数，<br>ClientArguments<br>Client<br>run</p><ol><li>new ClientArguments(args）<br>进入这个类很容易可以看到之前的命令参数再次被封装起来。</li><li>new Client<br><img src="https://s1.ax1x.com/2020/06/19/NK3EWV.png" alt="NK3EWV.png"><br>这里可以看到<figure class="highlight scala"><table><tr><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">val</span> yarnClient = <span class="type">YarnClient</span>.createYarnClient</span><br></pre></td></tr></table></figure>这里Client创建了一个yarn的客户端。<br>所以在当前的环境中应该已经包含了yarn的服务器，ResourceManager与NodeManager</li><li>run<br><img src="https://s1.ax1x.com/2020/06/19/NK3X79.png" alt="NK3X79.png"><br>this.appId = submitApplication()此方法用于提交应用<ul><li>进入submitApplication<br><img src="https://s1.ax1x.com/2020/06/19/NK85HH.png" alt="NK85HH.png"><br>这里初始化了yarnClient客户端，与启动了yarnClient。使sparkSubmit能与yarn开始通信<figure class="highlight scala"><table><tr><td class="code"><pre><span class="line"><span class="comment">//179行</span></span><br><span class="line">      <span class="keyword">val</span> containerContext = createContainerLaunchContext(newAppResponse)</span><br><span class="line">      <span class="keyword">val</span> appContext = createApplicationSubmissionContext(newApp, containerContext)</span><br><span class="line"></span><br><span class="line"> <span class="comment">//184行</span></span><br><span class="line"> yarnClient.submitApplication(appContext)</span><br></pre></td></tr></table></figure>开始向yarnClient提交应用，参数appContext为提交的内容<br>createContainerLaunchContext:主要封装JVM的参数，与封装ApplicationMaster的参数<br>createApplicationSubmissionContext：主要封装框架的参数信息</li></ul></li></ol><figure class="highlight scala"><table><tr><td class="code"><pre><span class="line"><span class="type">YarnClusterApplication</span></span><br><span class="line">    -- start</span><br><span class="line">    </span><br><span class="line">        <span class="comment">// 封装参数</span></span><br><span class="line">        <span class="comment">// --class xxxxx.WordCount</span></span><br><span class="line">        -- <span class="keyword">new</span> <span class="type">ClientArguments</span></span><br><span class="line">    </span><br><span class="line">        -- <span class="keyword">new</span> <span class="type">Client</span></span><br><span class="line">            <span class="comment">// 建立和RM之间的联系</span></span><br><span class="line">            -- yarnClient = <span class="type">YarnClient</span>.createYarnClient</span><br><span class="line">        -- run</span><br><span class="line">            <span class="comment">// 提交应用</span></span><br><span class="line">            -- submitApplication</span><br><span class="line">            </span><br><span class="line">                -- yarnClient.init</span><br><span class="line">                -- yarnClient.start</span><br><span class="line">                 <span class="comment">// 环境准备</span></span><br><span class="line">                <span class="comment">// command(Cluster) = bin/java org.apache.spark.deploy.yarn.ApplicationMaster</span></span><br><span class="line">                <span class="comment">// command(Client)  = bin/java org.apache.spark.deploy.yarn.ExecutorLauncher</span></span><br><span class="line">                -- createContainerLaunchContext(newAppResponse)</span><br><span class="line">                -- createApplicationSubmissionContext(newApp, containerContext)</span><br><span class="line">                </span><br><span class="line">                <span class="comment">// 向Yarn提交应用</span></span><br><span class="line">                -- yarnClient.submitApplication(appContext)</span><br><span class="line">                </span><br><span class="line">                    -- rmClient.submitApplication</span><br></pre></td></tr></table></figure>]]></content>
+      
+      
+      <categories>
+          
+          <category> spark </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> spark源码 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>groupByKey与ReduceByKey的区别</title>
       <link href="/2020/05/23/spark/groupByKey%E4%B8%8EReduceByKey%E7%9A%84%E5%8C%BA%E5%88%AB/"/>
       <url>/2020/05/23/spark/groupByKey%E4%B8%8EReduceByKey%E7%9A%84%E5%8C%BA%E5%88%AB/</url>
