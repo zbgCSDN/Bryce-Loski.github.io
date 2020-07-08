@@ -4,6 +4,60 @@
   
     
     <entry>
+      <title>kylin构建原理与优化</title>
+      <link href="/2020/07/07/kylin/kylin%E6%9E%84%E5%BB%BA%E5%8E%9F%E7%90%86%E4%B8%8E%E4%BC%98%E5%8C%96/"/>
+      <url>/2020/07/07/kylin/kylin%E6%9E%84%E5%BB%BA%E5%8E%9F%E7%90%86%E4%B8%8E%E4%BC%98%E5%8C%96/</url>
+      
+        <content type="html"><![CDATA[<h2 id="写在前面的话"><a href="#写在前面的话" class="headerlink" title="写在前面的话"></a>写在前面的话</h2><p>kylin是一个华人写的即席查询的框架。所以有中文的社区。对于英语困难户来说真的是天大的福利了。一站式安装到底真舒服<del>~</del></p><p>所以本文就介绍下Kylin的底层架构原理与优化吧。</p><h1 id="Kylin-Cube的构建原理"><a href="#Kylin-Cube的构建原理" class="headerlink" title="Kylin Cube的构建原理"></a>Kylin Cube的构建原理</h1><h2 id="维度与度量"><a href="#维度与度量" class="headerlink" title="维度与度量"></a>维度与度量</h2><p>在介绍Cube之前首先需要了解维度与度量的概念</p><h3 id="维度"><a href="#维度" class="headerlink" title="维度"></a>维度</h3><p>在数仓构建中，维度是一个很重要的指标，就是<font color=red>观察数据的角度</font><br>维度是一组离散的值，比如性别中男和女，时间中的每一个时间点。所以在统计时，也通常将多种维度聚合在一起分析。</p><h3 id="度量"><a href="#度量" class="headerlink" title="度量"></a>度量</h3><p><font color=red>被聚合（观察）的统计值，也就是聚合运算的结果</font>，度量值也就是维度的客观反映结果，如性别为男的员工的个数。</p><h2 id="Cube与Cuboid"><a href="#Cube与Cuboid" class="headerlink" title="Cube与Cuboid"></a>Cube与Cuboid</h2><p>有了维度与度量，一个数据表或者数据模型上所有的字段都可以分类了。所以，根据维度与度量值就可以做出与计算的Cube理论。<br>所以，给定一个模型，我们就可以对上面所有的维度进行聚合。对于一个N维来说，就有2<sup>n</sup>种。对于每一种组合，将度量值进行聚合计算，然后将计算结果保存为一个物化视图，就称为<font color=red>Cuboid</font>。所有的Cuboid作为一个整体称为<font color=red>Cube</font>。<br><img src="https://images2015.cnblogs.com/blog/399159/201603/399159-20160303170336627-705310588.png" alt="UA19eJ.png"><br>上面是一个简单的例子：假设这个电商项目的销售数据集，其中维度包括：时间[time]、商品[item]、地区[location]和供应商[supplier]，度量值为销售额。那么所有的维度组合一共有2<sup>4</sup>=16种<br>零维：1种<br>一维：[time]、[item]、[location]和[supplier]4种<br>二维：[time, item]、[time, location]、[time, supplier]、[item, location]、[item, supplier]、[location, supplier]6种<br>三维：[time,item,location]、[time,item,supplier]、[time,location,supplier]、[,item,location,supplier]4种<br>四维：[time,item,location,supplier]1种<br><font color=red>这16种组合称为Cuboid，16个Cuboid整体为一个Cube</font></p><h2 id="Cube的储存原理"><a href="#Cube的储存原理" class="headerlink" title="Cube的储存原理"></a>Cube的储存原理</h2><p>为了节省存储空间，Cube的存储采用维度字典表的形式进行存储。<br><img src="https://i.loli.net/2020/07/07/Jy85k7GzCut3FbU.png" alt="Kylin储存原理1.png"><br>以上是一个标准的表字段，但是在Cube中存储的时候是将Cube拆开来，以每个维度作为一个块单独存储，维度的每一个字段作为K，分配value值。<br>在对维度进行聚合时，就取value值作为RowKey<br><img src="https://i.loli.net/2020/07/07/ZFvGMlJY6BxcIRd.png" alt="Kylin储存原理2.png"><br>对于RowKey的设计，将所有维度值作为Row的前半段。按顺序，如果用到了就位1，没有用到就为0.后半段是每个维度所对应的纬度值。<br>value就储存度量值。<br>所以在以上的表格，如果统计北京地区，2019-01-09电子产品的销售值。对应的RowKey的设计就为：111000</p><h2 id="Cube构建算法"><a href="#Cube构建算法" class="headerlink" title="Cube构建算法"></a>Cube构建算法</h2><p>Cube构建算法一共有两种，一种为逐层构建算法，另一种为快速构建算法。而Kylin会根据集群资源与表结构情况自动选取对应的构建算法。<br>当然可以通过修改配置文件<code>kylin.cube.algorithm</code>进行自行选择参数值可选 <code>auto</code>，<code>layer</code> 和<code>inmem</code>， 默认值为 <code>auto</code></p><h3 id="逐层构建算法-layer"><a href="#逐层构建算法-layer" class="headerlink" title="逐层构建算法(layer)"></a>逐层构建算法(layer)</h3><p><img src="http://lizhenchao.oss-cn-shenzhen.aliyuncs.com/1552552014.png" alt=""><br>逐层构建算法的算例就是按照维度层数一层一层的减少来计算，如上图，从4维开始构建一个MR，在减去一个维度，基于4维的计算结果，构建4个三维的MR，再根据4个三维的计算结果，构建6个二维的MR，最后构建4个一维的MR。<br>每一轮的计算都是一个MapReduce任务，且串行执行；一个N维的Cube，至少需要N次MapReduce Job。<br>算法优点：1、代码逻辑清晰，易于维护<br>                    2、当集群资源紧张，或者计算量特别庞大时，也能保证能够最终完成计算</p><p>算法缺点：1、当Cube有特别多的维度时，反复提交MR会浪费很多资源</p><p>​                    2、每一次MR都会伴随着一次shuffle的操作，所以导致效率低下</p><p>​                    3、对HDFS的读写操作较多：由于每一层计算的输出会用做下一层计算的输入，这些Key-Value需要写到HDFS上；当所有计算都完成后，Kylin还需要额外的一轮任务将这些文件转成HBase的HFile格式，以导入到HBase中去；</p><h3 id="快速构建算法-inmem"><a href="#快速构建算法-inmem" class="headerlink" title="快速构建算法(inmem)"></a>快速构建算法(inmem)</h3><p><img src="https://img-blog.csdn.net/20180814123615682?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2M5Mjk4MzM2MjNsdmNoYQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70" alt=""><br>也被称作“逐段”(By Segment) 或“逐块”(By Split) 算法，从1.5.x开始引入该算法，该算法的主要思想是，每个Mapper将其所分配到的数据块，计算成一个完整的小Cube 段（包含所有Cuboid，如有4个维度时在Mapper端就会计算出16个Cuboid）。每个Mapper将计算完的Cube段输出给Reducer做合并，生成大Cube，也就是最终结果。<br>优点：取消了大量的shuffle，同时在mapper端利用内存做了预聚合。<br>缺点：会消耗大量的资源去计算</p><h2 id="Kylin-Cube的构建优化"><a href="#Kylin-Cube的构建优化" class="headerlink" title="Kylin Cube的构建优化"></a>Kylin Cube的构建优化</h2><h3 id="使用衍生维度（derived-dimension）"><a href="#使用衍生维度（derived-dimension）" class="headerlink" title="使用衍生维度（derived dimension）"></a>使用衍生维度（derived dimension）</h3><p>衍生维度用于在有效维度内将维度表上的非主键维度排除掉，并使用维度表的主键（其实是事实表上相应的外键）来替代它们。Kylin会在底层记录维度表主键与维度表其他维度之间的映射关系，以便在查询时能够动态地将维度表的主键“翻译”成这些非主键维度，并进行实时聚合。<br><img src="https://i.loli.net/2020/07/07/K7ENPJ5p3GQjknF.png" alt="衍生维度.png"></p><h3 id="使用聚合组（Aggregation-group）"><a href="#使用聚合组（Aggregation-group）" class="headerlink" title="使用聚合组（Aggregation group）"></a>使用聚合组（Aggregation group）</h3><ol><li>强制维度<br>如果一个维度被定义为强制维度，那么这个分组产生的所有Cuboid中每一个Cuboid都会包含该维度。每个分组中都可以有0个、1个或多个强制维度。如果根据这个分组的业务逻辑，则相关的查询一定会在过滤条件或分组条件中，因此可以在该分组中把该维度设置为强制维度。</li><li>层级维度<br>每个层级包含两个或更多个维度。假设一个层级中包含D1，D2…Dn这n个维度，那么在该分组产生的任何Cuboid中， 这n个维度只会以（），（D1），（D1，D2）…（D1，D2…Dn）这n+1种形式中的一种出现。每个分组中可以有0个、1个或多个层级，不同的层级之间不应当有共享的维度。如果根据这个分组的业务逻辑，则多个维度直接存在层级关系，因此可以在该分组中把这些维度设置为层级维度。</li><li>联合维度<br>每个联合中包含两个或更多个维度，如果某些列形成一个联合，那么在该分组产生的任何Cuboid中，这些联合维度要么一起出现，要么都不出现。每个分组中可以有0个或多个联合，但是不同的联合之间不应当有共享的维度（否则它们可以合并成一个联合）。如果根据这个分组的业务逻辑，多个维度在查询中总是同时出现，则可以在该分组中把这些维度设置为联合维度。<br><img src="https://i.loli.net/2020/07/07/8lq7rgkLdMwXDyU.png" alt="聚合组.png"><h3 id="Row-Key优化"><a href="#Row-Key优化" class="headerlink" title="Row Key优化"></a>Row Key优化</h3>Kylin会把所有的维度按照顺序组合成一个完整的Rowkey，并且按照这个Rowkey升序排列Cuboid中所有的行。<br>设计良好的Rowkey将更有效地完成数据的查询过滤和定位，减少IO次数，提高查询速度，维度在rowkey中的次序，对查询性能有显著的影响。<br>Row key的设计原则如下：</li><li>被用作过滤的维度放在前边。<br><img src="https://i.loli.net/2020/07/07/xS46eDLGqdnaWJs.png" alt="过滤维度.png"></li><li>基数大的维度放在基数小的维度前边。<br><img src="https://i.loli.net/2020/07/07/NEVpzmZQOXxwkWI.png" alt="基数设置.png"><h3 id="并发粒度优化"><a href="#并发粒度优化" class="headerlink" title="并发粒度优化"></a>并发粒度优化</h3>当Segment中某一个Cuboid的大小超出一定的阈值时，系统会将该Cuboid的数据分片到多个分区中，以实现Cuboid数据读取的并行化，从而优化Cube的查询速度。具体的实现方式如下：构建引擎根据Segment估计的大小，以及参数“kylin.hbase.region.cut”的设置决定Segment在存储引擎中总共需要几个分区来存储，如果存储引擎是HBase，那么分区的数量就对应于HBase中的Region数量。kylin.hbase.region.cut的默认值是5.0，单位是GB，也就是说对于一个大小估计是50GB的Segment，构建引擎会给它分配10个分区。用户还可以通过设置kylin.hbase.region.count.min（默认为1）和kylin.hbase.region.count.max（默认为500）两个配置来决定每个Segment最少或最多被划分成多少个分区。</li></ol>]]></content>
+      
+      
+      <categories>
+          
+          <category> kylin </category>
+          
+          <category> 核心 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> kylin </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>那些年走过的azkaban的坑</title>
+      <link href="/2020/07/06/azkaban/%E9%82%A3%E4%BA%9B%E5%B9%B4%E8%B5%B0%E8%BF%87%E7%9A%84azkaban%E7%9A%84%E5%9D%91/"/>
+      <url>/2020/07/06/azkaban/%E9%82%A3%E4%BA%9B%E5%B9%B4%E8%B5%B0%E8%BF%87%E7%9A%84azkaban%E7%9A%84%E5%9D%91/</url>
+      
+        <content type="html"><![CDATA[<p>写在前面的话：azkaban这个轻量级的调度工具说实话报错信息真的很让人捉急，基本上提供不了什么有用的信息</p><h2 id="1-java-lang-IllegalStateException-Process-has-not-yet-started"><a href="#1-java-lang-IllegalStateException-Process-has-not-yet-started" class="headerlink" title="1. java.lang.IllegalStateException: Process has not yet started"></a>1. java.lang.IllegalStateException: Process has not yet started</h2><p><img src="https://s1.ax1x.com/2020/07/06/UinScn.png" alt="UinScn.png"><br>检查点一：检查flow文件内容是否写正确，格式问题，脚本路径。这一切都很重要！！！<br>检查点二：如果在集群中部署了多Executor模式。那么在这种模式下Azkaban web Server会根据策略，选取其中一个Executor取执行任务。如果给Azkaban调度扽脚本所需要的应用只在某些节点部署了。<br>方案一：指定特定的Executor取执行任务</p><ol><li>在MySQL中azkaban数据库executors表中，查询应用所在节点上的Executor的id。<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">mysql&gt; use azkaban;</span><br><span class="line">Reading table information for completion of table and column names</span><br><span class="line">You can turn off this feature to get a quicker startup <span class="keyword">with</span> -A</span><br><span class="line"></span><br><span class="line"><span class="keyword">Database</span> <span class="keyword">changed</span></span><br><span class="line">mysql&gt; <span class="keyword">select</span> * <span class="keyword">from</span> executors;</span><br><span class="line">+<span class="comment">----+-----------+-------+--------+</span></span><br><span class="line">| id | host          | port  | active |</span><br><span class="line">+<span class="comment">----+-----------+-------+--------+</span></span><br><span class="line">|  1   | hadoop103 | 35985 |      1 |</span><br><span class="line">|  2   | hadoop104 | 36363 |      1 |</span><br><span class="line">|  3   | hadoop102 | 12321 |      1 |</span><br><span class="line">+<span class="comment">----+-----------+-------+--------+</span></span><br><span class="line">3 rows in <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure></li><li>在执行工作流程时加入useExecutor属性，如下<br><img src="https://s1.ax1x.com/2020/07/06/UiuVVf.png" alt="UiuVVf.png"><br>方案二：在Executor所在所有节点部署任务所需脚本和应用。</li></ol><h2 id="2-upload-job时，显示已经上传，但是看不到任务问题"><a href="#2-upload-job时，显示已经上传，但是看不到任务问题" class="headerlink" title="2.upload job时，显示已经上传，但是看不到任务问题"></a>2.upload job时，显示已经上传，但是看不到任务问题</h2><p>检查.flow的文件，文件名的后缀是否正确。Azkaban并不会告诉你文件后缀不正确。。。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> azkaban </category>
+          
+          <category> 问题记录 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> azkaban </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>HBase协处理器错误记录</title>
       <link href="/2020/06/18/hbase/HBase%E5%8D%8F%E5%A4%84%E7%90%86%E5%99%A8%E9%94%99%E8%AF%AF%E8%AE%B0%E5%BD%95/"/>
       <url>/2020/06/18/hbase/HBase%E5%8D%8F%E5%A4%84%E7%90%86%E5%99%A8%E9%94%99%E8%AF%AF%E8%AE%B0%E5%BD%95/</url>
